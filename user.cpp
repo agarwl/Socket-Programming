@@ -1,15 +1,16 @@
-#include <iostream>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-#include <netdb.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-using namespace std;
+// #include <iostream>
+// #include <string.h>
+// #include <stdio.h>
+// #include <stdlib.h>
+// #include <unistd.h>
+// #include <errno.h>
+// #include <netdb.h>
+// #include <sys/types.h>
+// #include <netinet/in.h>
+// #include <sys/socket.h>
+// #include <sys/types.h>
+#include "utilfuncs.h"
+// using namespace std;
 
 #define MAXLEN 80
 
@@ -34,7 +35,7 @@ int main(int argc, char const *argv[])
 	server_port = atoi(argv[2]);
 
 	server = gethostbyname(argv[1]);
-	if (he == NULL) // get the host info
+	if (server == NULL) // get the host info
 		error("gethostbyname");
 	
 	sock_fd = socket(AF_INET,SOCK_STREAM,0); //initialising the TCP socket
@@ -43,7 +44,7 @@ int main(int argc, char const *argv[])
 
 	server_addr.sin_family = AF_INET; // host byte order
 	server_addr.sin_port = htons(server_port); // short, network byte order
-	server_addr.sin_addr = *((struct in_addr *)he->h_addr);
+	server_addr.sin_addr = *((struct in_addr *)server->h_addr);
 	memset(&(server_addr.sin_zero), '\0', 8); // zero the rest of the struct
 
 	if (connect(sock_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr)) == -1)

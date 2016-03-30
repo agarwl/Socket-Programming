@@ -1,11 +1,10 @@
 
 int send_all(int sock_fd, const void *buffer, size_t length, int flags)
 {
-	int ret, bytes = 0, buflen = sizeof(buffer); //bytes indicates the position of pointer of the byte to be sent
-	while (bytes < buflen) 	//send all the bytes of the mssg unless an error is received 
+	int ret, bytes = 0;
+	while (bytes < length) 	//send all the bytes of the mssg unless an error is received 
 	{
-    	ret = send(sock_fd, buffer+bytes, buflen-bytes, 0); // ret equals the no of bytes sent successfully to the receiver
-
+    	ret = send(sock_fd, buffer+bytes, length-bytes, 0); // ret equals the no of bytes sent successfully to the receiver
     	if(ret<=0) break;
     	bytes+=ret; // to increment the buf pointer
 	}
@@ -20,13 +19,17 @@ void error(const char *msg)
 
 int recv_all(int sock_fd, const void *buffer, size_t length, int flags)
 {
-	int ret, bytes = 0, buflen = sizeof(buffer); //bytes indicates the position of pointer of the byte to be sent
-	while (bytes < buflen) 	//send all the bytes of the mssg unless an error is received 
+	int ret, bytes = 0, total = 0;
+	while(total < length)
 	{
-    	ret = recv(sock_fd, buffer+bytes, buflen-bytes, 0); // ret equals the no of bytes sent successfully to the receiver
-
-    	if(ret<=0) break;
-    	bytes+=ret; // to increment the buf pointer
+		cnt = recv(sock_fd,buffer+bytes,length-bytes,0);
+		if(cnt <= 0) break;
+		total += cnt;
 	}
-	return (ret<=0) ? -1 : 0;
+	if(cnt < 0)
+		return -1;
+	else if(cnt == 0)
+		return 0;
+	else
+		return 1;
 }

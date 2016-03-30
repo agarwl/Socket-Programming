@@ -1,28 +1,23 @@
 #ifndef UTILFUNCS_H
 #define UTILFUNCS_H
-
+#include <iostream>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <netdb.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <arpa/inet.h>
-
+using namespace std;
 
 int send_all(int socket, const void *buffer, size_t length, int flags);
 int recv_all(int socket,const void *buffer, size_t length, int flags);
-void initialise(int sock_fd,sockaddr_in server_addr,char* server_name,char* port);
+// void initialise(int sock_fd,sockaddr_in server_addr,char* server_name,char* port);
 void error(const char *msg);
 
-// {
-// ssize_t n;
-// const char *p = buffer;
-// while (length > 0)
-// {
-// n = send(socket, p, length, flags);
-// if (n <= 0) break;
-// p += n;
-// length ­= n;
-// }
-// return (n <= 0) ? ­1 : 0;
-// }
 
 #endif

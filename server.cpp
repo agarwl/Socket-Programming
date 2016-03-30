@@ -1,22 +1,23 @@
-#include <iostream>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-#include <netdb.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-using namespace std;
+// #include <iostream>
+// #include <string.h>
+// #include <stdio.h>
+// #include <stdlib.h>
+// #include <unistd.h>
+// #include <errno.h>
+// #include <netdb.h>
+// #include <sys/types.h>
+// #include <netinet/in.h>
+// #include <sys/socket.h>
+// #include <sys/types.h>
+#include "utilfuncs.h"
+// using namespace std;
 
 #define BACKLOG 8 // how many pending connections queue will hold
 
 void error(const char *msg)
 {
     perror(msg);
-    return 1;
+    exit(1);
 }
 
 void dostuff(int); /* function prototype */
@@ -34,6 +35,7 @@ int main(int argc, char const *argv[])
 	int pid;
 	char buf[256]; // buffer for client data
 	int nbytes;
+	int remote_size;
 	int num_workers=0,num_clients=0;
 	short workers[5];
 
