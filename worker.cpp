@@ -1,16 +1,9 @@
+/*
+Compile as g++ worker.cpp utilfuncs.cpp -lcrypt -o worker 
+*/
+
 #define _XOPEN_SOURCE
-// #include <unistd.h>
-// #include <iostream>
-// #include <string.h>
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <unistd.h>
-// #include <errno.h>
-// #include <netdb.h>
-// #include <sys/types.h>
-// #include <netinet/in.h>
-// #include <sys/socket.h>
-// #include <sys/types.h>
+
 #include "utilfuncs.h"
 
 char alphabet[] = {'a' ,'b'  ,'c'  ,'d'  ,'e'  ,'f'  ,'g'  ,'h'  ,'i'  ,'j'  ,'k'  ,'l'  ,'m'  ,'n'  ,'o'  ,'p'  ,'q'  ,'r'  ,'s'  
@@ -71,7 +64,6 @@ int main(int argc, char const *argv[])
 		return 1;
 	}
 	int sock_fd, numbytes;
-	char recvbuf[MAXLEN];
 	struct hostent *he;
 	struct sockaddr_in server_addr; // connector’s address information
 
@@ -97,26 +89,25 @@ int main(int argc, char const *argv[])
 		return 1;
 	}
 
-	char recbuf[MAXLEN];
-	char mssg[PWDLEN+2],gen[PWDLEN];
+	char recbuf[MAXLEN],mssg[MAXLEN],gen[PWDLEN];
+	mssg[0] = 'w';
+	mssg[1] = 's';
+	send_all(sock_fd,mssg,sizeof(mssg),0);
+
 	while(true)
 	{
-		numbytes = recv_all(sock_fd, recbuf, MAXLEN-1, 0);
-		if(numbytes <= 0){
-			perror("receive");
-			return 1;
-		}
+		while( recv_all(sock_fd, recbuf, MAXLEN, 0) != 1){}
+		cout << "fuck";
 		// receive the hash, pwd-len, binary-string
-		memcpy(hash,recbuf+1,HASHLEN);
+		memcpy(hash,recbuf,HASHLEN);
 		hash[HASHLEN] = '\0';
 		memcpy(salt,hash,2);
-		char c = recbuf[HASHLEN];
-		int pwd_len = atoi(&c);
+		int pwd_len = atoi(&recbuf[HASHLEN]);
 		memcpy(bin_str,recbuf+HASHLEN+1,sizeof(bin_str));	
 
 		generate_hash(0,gen);
 		
-		mssg[0] = 'w';
+		
 		if(found){
 			mssg[1] = 'y';
 			memcpy(mssg+2,pwd,pwd_len);
@@ -127,4 +118,5 @@ int main(int argc, char const *argv[])
 		}
 		send_all(sock_fd,mssg,sizeof(mssg),0);
 	}
+	return 0;
 }

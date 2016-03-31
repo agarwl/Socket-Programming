@@ -14,10 +14,9 @@
 #include <arpa/inet.h>
 using namespace std;
 
-int send_all(int socket, const void *buffer, size_t length, int flags);
-int recv_all(int socket,const void *buffer, size_t length, int flags);
-// void initialise(int sock_fd,sockaddr_in server_addr,char* server_name,char* port);
+int send_all(int socket, char *buffer, size_t length, int flags);
+int recv_all(int socket,char *buffer, size_t length, int flags);
 void error(const char *msg);
-
+// void initialise(int sock_fd,sockaddr_in server_addr,char* server_name,char* port);
 
 #endif

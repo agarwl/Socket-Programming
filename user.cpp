@@ -1,24 +1,13 @@
-// #include <iostream>
-// #include <string.h>
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <unistd.h>
-// #include <errno.h>
-// #include <netdb.h>
-// #include <sys/types.h>
-// #include <netinet/in.h>
-// #include <sys/socket.h>
-// #include <sys/types.h>
+/*
+Compile as g++ user.cpp -o user 
+*/
+
 #include "utilfuncs.h"
 // using namespace std;
 
-#define MAXLEN 80
-
-void error(const char *msg)
-{
-    perror(msg);
-    exit(1);
-}
+#define MAXLEN 20
+#define PWDLEN 8
+#define HASHLEN 13
 
 int main(int argc, char const *argv[])
 {
@@ -26,8 +15,8 @@ int main(int argc, char const *argv[])
 		cout << "Usage: ./user <server ip/host-name> <server-port> <hash> <passwd-length> <binary-string>" << endl;
 		return 1;
 	}
-	int sock_fd, server_port,numbytes;
-	char recvbuf[MAXLEN];
+	int sock_fd, server_port;
+	char recvbuf[PWDLEN+1];
 	struct hostent *server;
 	struct sockaddr_in server_addr; // connector’s address information
 	
@@ -50,24 +39,21 @@ int main(int argc, char const *argv[])
 	if (connect(sock_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr)) == -1)
 		error("connect");
 
-	string mssg = "";
-	mssg =  (((mssg + argv[3] + " ")  + argv[4]) + " ")+ argv[5]; // mssg contains the hash, length and the binary-string
-	const char* buf = mssg.c_str();// converting the mssg string to char array 
+	char buf[MAXLEN];
+	buf[0] = 'c';
+	memcpy(buf+1,argv[3],HASHLEN);
+	memcpy(buf+HASHLEN+1,argv[4],1);
+	memcpy(buf+HASHLEN+2,argv[5],3);
+	buf[HASHLEN+5] = '\0';
+	if(send_all(sock_fd,buf,MAXLEN,0) == -1)
+		error("send");
+
+	listen(sock_fd,1);
+	while(recv_all(sock_fd, recvbuf,PWDLEN+1,0) != 1){}
+		
+	// if(recv_all(sock_fd, recvbuf,PWDLEN+1, 0) < 0) // receiving the password and time taken from server
+	// 	error("recv");
 	
-	int ret, bytes = 0, buflen = sizeof(buf); //bytes indicates the position of pointer of the byte to be sent
-	while (bytes < buflen) 	//send all the bytes of the mssg unless an error is received 
-	{
-    	ret = send(sock_fd, buf+bytes, buflen-bytes, 0); // ret equals the no of bytes sent successfully to the receiver
-    	
-    	if (ret == -1) 	//check for errors
-        	error("send");
-    	bytes+=ret; // to increment the buf pointer
-	}
-	
-	numbytes = recv(sock_fd, recvbuf, MAXLEN-1, 0); // receiving the password and time taken from server
-	if(numbytes == -1) perror("recv");
-	
-	recvbuf[numbytes] = '\0';
 	cout << "Password and time taken:" << endl << recvbuf << endl;
 	close(sock_fd);
 	return 0; 
