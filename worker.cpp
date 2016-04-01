@@ -18,11 +18,10 @@ char alphabet[] = {'a' ,'b'  ,'c'  ,'d'  ,'e'  ,'f'  ,'g'  ,'h'  ,'i'  ,'j'  ,'k
 #define MAXLEN 20
 #define HASHLEN 13
 
-int l,h; // indices indicating the range of salts to be used
 char hash[HASHLEN+1];
 int pwd_len;
-char pwd[PWDLEN+1],bin_str[4],salt[2];
-bool found = 0;
+char pwd[PWDLEN+1],bin_str[3],salt[2];
+bool found = false;
 
 void generate_hash(int curr,char* gen)
 {
@@ -50,9 +49,11 @@ void generate_hash(int curr,char* gen)
 		}
 	}
 	else if(!found){
+		 cout << gen << endl;
 		if(strcmp(crypt(gen,salt),hash) == 0){
-			strcpy(pwd,gen);
+			memcpy(pwd,gen,pwd_len);
 			found  = true;
+			cout << "yeah";
 		}
 	}
 }
@@ -73,7 +74,8 @@ int main(int argc, char const *argv[])
 		return 1;
 	}
 	
-	sock_fd = socket(AF_INET,SOCK_STREAM,0); //initialising the TCP socket
+	//initialising the TCP socket
+	sock_fd = socket(AF_INET,SOCK_STREAM,0); 
 	if (sock_fd == -1) {
 		perror("socket");
 		return 1;
@@ -97,16 +99,22 @@ int main(int argc, char const *argv[])
 	while(true)
 	{
 		while( recv_all(sock_fd, recbuf, MAXLEN, 0) != 1){}
-		cout << "fuck";
+		cout << recbuf<< endl;
 		// receive the hash, pwd-len, binary-string
 		memcpy(hash,recbuf,HASHLEN);
 		hash[HASHLEN] = '\0';
+		
+		//the first two characters of the hash is salt
 		memcpy(salt,hash,2);
-		int pwd_len = atoi(&recbuf[HASHLEN]);
+
+		char c = recbuf[HASHLEN];
+		pwd_len = atoi(&c);
+		
+		cout << pwd_len << endl;
 		memcpy(bin_str,recbuf+HASHLEN+1,sizeof(bin_str));	
 
+		gen[pwd_len]  = '\0';
 		generate_hash(0,gen);
-		
 		
 		if(found){
 			mssg[1] = 'y';

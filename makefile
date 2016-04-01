@@ -6,7 +6,7 @@ RM = rm
 DIR = ./
 PRINTF	= printf 
 
-SOURCES = utilfuncs.cpp server.cpp worker.cpp user.cpp
+SOURCES = utilfuncs.cpp serverNew.cpp worker.cpp user.cpp
 TARGETS = server worker user
 OBJECTS = $(SOURCES:.cpp=.o)
 SERVER=server
@@ -19,8 +19,8 @@ all: target
 
 target: $(SERVER) $(WORKER) $(CLIENT)
 
-$(SERVER): server.o utilfuncs.o
-	$(CC) server.o utilfuncs.o -o $@
+$(SERVER): serverNew.o utilfuncs.o
+	$(CC) serverNew.o utilfuncs.o -o $@
 
 $(CLIENT): user.o utilfuncs.o
 	$(CC) user.o utilfuncs.o -o $@
