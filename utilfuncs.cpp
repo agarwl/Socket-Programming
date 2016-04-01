@@ -19,6 +19,19 @@ void error(const char *msg)
     exit(1);
 }
 
+void itoc(const int & num,char *c)
+{
+	if (num < 10){
+		c[0] = num + '0';
+		c[1] ='\0';
+	}
+	else{
+		c[1] = (num%10) + '0';
+		c[0] = num/10 + '0';
+	}
+	return;
+}
+
 int recv_all(int sock_fd, char *buffer, size_t length, int flags)
 {
 	int cnt;
