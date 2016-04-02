@@ -3,7 +3,7 @@ Compile as g++ worker.cpp utilfuncs.cpp -lcrypt -o worker
 */
 
 #define _XOPEN_SOURCE
-#include <map>
+#include <unordered_map>
 #include <pthread.h>
 #include "utilfuncs.h"
 
@@ -16,9 +16,9 @@ char alphabet[] = {'a' ,'b'  ,'c'  ,'d'  ,'e'  ,'f'  ,'g'  ,'h'  ,'i'  ,'j'  ,'k
 #define ch 52  
 #define sz 62
 
-map<char,int> ctoi;
+unordered_map<char,int> ctoi;
 
-char hash[HASHLEN+1], pwd[PWDLEN+1],bin_str[3],salt[3]; // data passed by the server
+char hashval[HASHLEN+1], pwd[PWDLEN+1],bin_str[3],salt[3]; // data passed by the server
 static char mssg[MAXLEN];// string for sending message to the server
 static char gen[PWDLEN+1];// a string to store all the possible password 
 static bool found = false; // variable to indicate whether the password is found during given task or not
@@ -106,9 +106,9 @@ int main(int argc, char const *argv[])
 		else{
 
 			// receive the hash, pwd-len, binary-string
-			memcpy(hash,recbuf,HASHLEN);
-			hash[HASHLEN] = '\0';
-			cout << "Trying to decrypt the hash " << hash << endl;
+			memcpy(hashval,recbuf,HASHLEN);
+			hashval[HASHLEN] = '\0';
+			cout << "Trying to decrypt the hash " << hashval << endl;
 			pwd_len = (recbuf[HASHLEN] - '0');
 			memcpy(bin_str,recbuf+HASHLEN+1,sizeof(bin_str));	
 
@@ -143,7 +143,7 @@ void initialise()
 	}
 
 	//the first two characters of the hash is salt
-	memcpy(salt,hash,2);
+	memcpy(salt,hashval,2);
 	salt[2] = '\0';
 }
 
@@ -160,7 +160,7 @@ void generate_next()
 		gen[last] = alphabet[(ctoi[gen[last]] + 1)%sz]; // %sz to wrap around the last character to indicate change
 	
 	// check whether the hash of the current string matches with the given hash
-	if(strcmp(crypt(gen,salt),hash) == 0){
+	if(strcmp(crypt(gen,salt),hashval) == 0){
 		memcpy(pwd,gen,pwd_len);
 		found  = true;
 	}

@@ -20,11 +20,11 @@ using namespace std;
 #define PWDLEN 8
 #define TASKINDEX 17
 
+// Helper function prototypes
 int send_all(int socket, char *buffer, size_t length, int flags);
 int recv_all(int socket,char *buffer, size_t length, int flags);
 void error(const char *msg);
 void itoc(const int & num,char *c);
-int stoi(char*c); 
-// void initialise(int sock_fd,sockaddr_in server_addr,char* server_name,char* port);
+int stoi(char*c);
 
 #endif

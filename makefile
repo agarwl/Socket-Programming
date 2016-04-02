@@ -1,5 +1,5 @@
 
-CC = g++
+CC = g++ -std=c++11
 CFLAGS = -c -Wall -g
 LDFLAGS=
 RM = rm

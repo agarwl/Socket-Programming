@@ -1,5 +1,6 @@
 #include "utilfuncs.h"
 
+// to send the complete packet of size length
 int send_all(int sock_fd, char *buffer, size_t length, int flags)
 {
 	int ret;
@@ -13,12 +14,14 @@ int send_all(int sock_fd, char *buffer, size_t length, int flags)
 	return (ret<=0) ? -1 : 0;
 }
 
+// to print error message on stream
 void error(const char *msg)
 {
     perror(msg);
     exit(1);
 }
 
+// to convert a character array of maximum length 2 into a integer
 int stoi(char*c)
 {
 	int x = c[0] - '0';
@@ -29,6 +32,7 @@ int stoi(char*c)
 	return x;
 }
 
+// convert a integer of atmost 2 digits into a char array
 void itoc(const int & num,char *c)
 {
 	if (num < 10){
@@ -42,20 +46,23 @@ void itoc(const int & num,char *c)
 	return;
 }
 
+// to receive the complete packet of size length
 int recv_all(int sock_fd, char *buffer, size_t length, int flags)
 {
 	int cnt;
 	size_t bytes = 0, total = 0;
 	while(total < length)
 	{
+		// cnt equals the partial no. of bytes received sucessfully
 		cnt = recv(sock_fd,buffer+bytes,length-bytes,0);
 		if(cnt <= 0) break;
 		total += cnt;
 	}
+	// error on receive
 	if(cnt < 0)
 		return -1;
-	else if(cnt == 0)
+	else if(cnt == 0)	// the other side of the connection hung up
 		return 0;
 	else
-		return 1;
+		return 1;  // mssg received succesfully
 }
