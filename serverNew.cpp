@@ -17,6 +17,7 @@ typedef map<int,int>::iterator it_type;
 #define HASHLEN 13
 #define PWDLEN 8
 #define CLIENTS 3
+#define TASKINDEX 17
 
 struct client{
 	int sock;
@@ -34,10 +35,8 @@ struct client{
 	}
 };
 
-queue<client> clients;
-// deque<worker> workers;
-map<int,int> worker;
-// int curr = -1;
+queue<client> clients; // queue for the clients
+map<int,int> worker; //a map to store whether a worker is busy or not
 char pwd[PWDLEN+1];
 
 const int MAX_WORKERS = 5;
@@ -51,12 +50,20 @@ int max_sock;// Highest  file descriptor, needed for select()
 struct sockaddr_in remoteaddr; // client address
 socklen_t remote_size = sizeof(remoteaddr);
 
+int curr_char = 0;
+int task_len=0;
+
 /* function prototypes */
-void updateConnections(int i);
+void set_tasklen();
+void updateConnections(const int &i);
 void construct_select_list();
 void deal_with_socket(int i);
 void read_sockets();
 void connection_handler();
+void assign_task(const int &sock_fd,char* msg);
+void assign_workers(char* msg,int sock=0);
+void send_password(char* buf);
+void stop_workers(char*msg);
 
 int main(int argc, char const *argv[])
 {
@@ -185,12 +192,11 @@ void read_sockets()
 void deal_with_socket(int i)
 {
    int sock = connections[i];
-   if(!sock) return;
+   if(!sock)
+   	return;
    int n,sock_fd;
-
    // array to send data to client/worker
    char msg[MAXLEN];
-   
    // array to receive data
    char buffer[MAXLEN];
    //empty the buffer
@@ -198,9 +204,11 @@ void deal_with_socket(int i)
 
    n = recv_all(sock,buffer,MAXLEN,0);
    if (n < 0) error("ERROR reading intial mssg from socket");
+   else if(n==0){
+   	updateConnections(i);
+   	return;
+   }
    printf("Here is the message: %s\n",buffer);
-   // strcpy(msg,"fuckyeah");
-   // send_all(sock,msg,PWDLEN+1,0);
 
    if(buffer[0] == 'c'){
 
@@ -208,43 +216,27 @@ void deal_with_socket(int i)
    			char c = buffer[HASHLEN+1];
    			int pwd_len = atoi(&c);
    			cout << "pwd_len: " << pwd_len << endl;
-			clients.push(client(sock,pwd_len,buffer+1,buffer+HASHLEN+2));			
+			clients.push(client(sock,pwd_len,buffer+1,buffer+HASHLEN+2));
+			set_tasklen();	
 		}
 		else{
 			strcpy(msg,"Connection aborted");
 			n = send_all(sock,msg,sizeof(msg),0);
 			if (n < 0) 
 				error("ERROR writing to client socket");
-			close(sock);
-			// remove the connection from the list
-			connections[i] = 0; 
+			updateConnections(i); 
 			return;
 		}
-
-		// cout << "worker size: " << worker.size() << '\n';
-		for (it_type it = worker.begin();it!= worker.end(); it++)
-		{
-			client c = clients.front();
-			memcpy(msg,c.hash,HASHLEN);
-			msg[HASHLEN] = (c.pwd_len + '0');
-			memcpy(msg+HASHLEN+1,c.bin_str,3);
-			
-			if(it->second == 0)
-			{
-				cout << "sending: " << msg << endl;
-				sock_fd =  it->first;
-				if (send_all(sock_fd,msg,MAXLEN,0) < 0)
-					error("ERROR writing to worker socket");
-				worker[sock_fd] = 1;
-				break;
-			}
-		}
+		assign_workers(msg);
 	}
 	else if(buffer[0] == 'w'){
 		
 		if(buffer[1] == 's'){
 			if(worker.size() < MAX_WORKERS){
+				//initialise this newly connected worker as free
 				worker[sock] = 0;
+				//assign this worker some task
+				assign_workers(msg,sock);
 				// cout << "worker size: " << worker.size() << '\n';
 			}
 			else{
@@ -257,26 +249,19 @@ void deal_with_socket(int i)
 			}
 		}	
 		else if(buffer[1] == 'y'){
-			client c = clients.front();
-			memcpy(pwd,buffer+2,c.pwd_len);
-			pwd[c.pwd_len] = '\0';
-			worker[sock] = 0;
-			sock_fd = (clients.front()).sock;
-			if(send_all(sock_fd,pwd,sizeof(pwd),0) < 0) 
-				 error("ERROR writing to client socket,the passwd");		
-			for (int i = 0; i < MAX_CONNECTIONS; ++i)
-			{
-				if(connections[i] == sock_fd){
-					updateConnections(i);
-					break;
-				}
-			}
-			clients.pop();
+			send_password(buffer+2);
+			stop_workers(msg);
+			assign_workers(msg);
+		}
+		else if(buffer[1] == 'n')
+		{
+			assign_task(sock,msg);
 		}
 	}
 }
+
 // close the socket pointed by connections[i] and update max_sock
-void updateConnections(int i)
+void updateConnections(const int &i)
 {
 	close(connections[i]);
 	if(max_sock == connections[i]){
@@ -288,4 +273,105 @@ void updateConnections(int i)
 		}
 	}
 	connections[i] = 0;
+}
+
+void set_tasklen()
+{
+	if(task_len == 0 && !clients.empty()){
+		client c = clients.front();
+		task_len = (c.bin_str[0] - '0')*26 + (c.bin_str[1] - '0')*26 + (c.bin_str[2]-'0')*10; 
+	}
+}
+
+void generate_msg(char* msg)
+{
+	if(!clients.empty()){
+		
+		//get the client at the top of the queue
+		client c = clients.front();
+		
+		//copy the hash into the message
+		memcpy(msg,c.hash,HASHLEN);
+		cout << c.pwd_len << endl;
+		msg[HASHLEN] = (c.pwd_len + '0');
+		
+		//append the binary-string into the message
+		memcpy(msg+HASHLEN+1,c.bin_str,3);
+	}	
+}
+
+void assign_workers(char* msg,int sock)
+{
+	generate_msg(msg);
+	if(!clients.empty()){
+		if(!sock)
+		{
+			for (it_type it = worker.begin();it!= worker.end(); it++)
+			{
+				if(it->second == 0)
+				{
+					assign_task(it->first,msg);
+				    // cout << "sending: " << msg << endl;
+				}
+			}
+		}
+		else
+			assign_task(sock,msg);
+	}
+}
+
+void assign_task(const int & sock_fd,char* msg)
+{
+	if(curr_char < task_len)
+	{
+		itoc(curr_char,msg+TASKINDEX);
+		msg[MAXLEN-1] = '\0';
+		cout << "msg:" << msg <<endl;
+		if (send_all(sock_fd,msg,MAXLEN,0) < 0)
+			error("ERROR writing to worker socket");
+		else
+		{
+			worker[sock_fd] = 1;
+			curr_char++;
+		}
+	}
+}
+
+void send_password(char* buf)
+{
+	if(!clients.empty()){
+		client c = clients.front();
+		memcpy(pwd,buf,c.pwd_len);
+		pwd[c.pwd_len] = '\0';
+		int sock_fd = (clients.front()).sock;
+		if(send_all(sock_fd,pwd,sizeof(pwd),0) < 0) 
+			 error("ERROR writing the psswd to client socket");
+		for (int i = 0; i < MAX_CONNECTIONS; ++i)
+		{
+			if(connections[i] == sock_fd){
+				updateConnections(i);
+				break;
+			}
+		}
+		clients.pop();
+		task_len = 0;
+		curr_char = 0;
+		set_tasklen();
+	}
+}
+
+void stop_workers(char*msg)
+{
+	strcpy(msg,"$found");
+	for (it_type it = worker.begin();it!= worker.end(); it++)
+	{
+		if(it->second == 1)
+		{	
+			if (send_all(it->first,msg,MAXLEN,0) < 0)
+				error("ERROR sending the stop message to worker socket");
+			else{
+				it->second = 0;
+			}
+		}
+	}
 }

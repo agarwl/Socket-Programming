@@ -19,6 +19,16 @@ void error(const char *msg)
     exit(1);
 }
 
+int stoi(char*c)
+{
+	int x = c[0] - '0';
+	if(c[1] != '\0'){
+		x *= 10;
+		x += (c[1] - '0');
+	}
+	return x;
+}
+
 void itoc(const int & num,char *c)
 {
 	if (num < 10){
