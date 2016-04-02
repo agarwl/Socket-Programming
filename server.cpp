@@ -398,7 +398,6 @@ void stop_workers(char*msg,int x)
 	}
 	for (it_type it = worker.begin();it!= worker.end(); it++)
 	{
-		cout << "fd " <<  it->first << " sock: " << it->second << endl;
 		if(it->second)
 		{	
 			if (send_all(it->first,msg,MAXLEN,0) < 0)
