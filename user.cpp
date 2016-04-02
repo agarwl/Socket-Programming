@@ -16,7 +16,7 @@ int main(int argc, char const *argv[])
 		cout << "Usage: ./user <server ip/host-name> <server-port> <hash> <passwd-length> <binary-string>" << endl;
 		return 1;
 	}
-	int sock_fd, server_port;
+	int sock_fd, server_port,n;
 	char recvbuf[PWDLEN+1];
 	struct hostent *server;
 	struct sockaddr_in server_addr; // connector’s address information
@@ -41,6 +41,8 @@ int main(int argc, char const *argv[])
 	if (connect(sock_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr)) == -1)
 		error("connect");
 
+	printf("Connection established with server\n");
+
 	char buf[MAXLEN];
 	buf[0] = 'c';
 	memcpy(buf+1,argv[3],HASHLEN);
@@ -54,7 +56,21 @@ int main(int argc, char const *argv[])
 	initial_time = clock();
 
 	listen(sock_fd,1);
-	while(recv_all(sock_fd, recvbuf,PWDLEN+1,0) != 1){}
+	while( (n = recv_all(sock_fd, recvbuf,PWDLEN+1,0)) != 1)
+	{
+		if(n == 0){
+			cout << "Server closed connection" << endl;
+			close(sock_fd);
+			return 1;
+		}
+	}
+	if(recvbuf[0] == '$')
+	{
+		cout << "Wrong combination of hash, binary-string and password-length entered" << endl;
+		cout << "Closing connection..." << endl;
+		close(sock_fd);
+		return 1;
+	}
 
 	// stop the timer after receiving the password from server
 	final_time = clock();

@@ -10,7 +10,7 @@ http://www.lowtek.com/sockets/select.html
 #include "utilfuncs.h"
 // using namespace std;
 
-typedef map<int,bool>::iterator it_type;
+typedef map<int,int>::iterator it_type;
 
 #define BACKLOG 8 // how many pending connections queue will hold
 #define CLIENTS 3
@@ -32,7 +32,7 @@ struct client{
 };
 
 queue<client> clients; // queue for the clients
-map<int,bool> worker; //a map to store whether a worker is busy or not
+map<int,int> worker; //a map to store whether a worker is busy or not
 char pwd[PWDLEN+1];
 
 const int MAX_WORKERS = 5;
@@ -58,7 +58,7 @@ void read_sockets();
 void connection_handler();
 void assign_task(const int &sock,char* msg);
 void assign_workers(char* msg,int sock=0);
-void send_password(char* buf);
+void send_password(char* buf,int i=0);
 void stop_workers(char*msg,int x=0);
 
 int main(int argc, char const *argv[])
@@ -162,7 +162,7 @@ void connection_handler()
 	for (int i = 0; i < MAX_CONNECTIONS; ++i)
 	{
 		if(connections[i] == 0){
-		 	printf("\nConnection accepted:  FD=%d; Slot=%d\n",newsockfd,i);
+		 	printf("Connection accepted:  FD=%d; Slot=%d\n",newsockfd,i);
 		 	connections[i] = newsockfd;
 		 	newsockfd = -1;
 		 	break;
@@ -170,7 +170,7 @@ void connection_handler()
 	}
 
 	if (newsockfd != -1) {
-		printf("\nNo room left for new connection.\n");
+		printf("No room left for new connection.\n");
 		close(newsockfd);
 	}
 }
@@ -236,7 +236,7 @@ void deal_with_socket(int i)
 		if(buffer[1] == 's'){
 			if(worker.size() < MAX_WORKERS){
 				//initialise this newly connected worker as free
-				worker[sock] = false;
+				worker[sock] = 0;
 				//assign this worker some task
 				assign_workers(msg,sock);
 				// cout << "worker size: " << worker.size() << '\n';
@@ -262,7 +262,14 @@ void deal_with_socket(int i)
 		else if(strcmp(buffer+1 ,"Not found") == 0)
 		{
 			// make worker idle
-			worker[sock] = false;
+			if(worker[sock] == task_len){
+				if(!clients.empty()){
+					cout << "Wrong hash entered by client,thereby closing its connection" << endl;
+					send_password(buffer,1);
+				}
+
+			}
+			worker[sock] = 0;
 			// assign new task to the worker
 			assign_workers(msg,sock);
 		}
@@ -288,12 +295,14 @@ void updateConnections(const int &i)
 				max_sock = max(max_sock,connections[j]);
 		}
 	}
+	cout << "The connection of client with FD " << connections[i] << " closed" << endl;
 	// update the connection in the connection list as well
 	connections[i] = 0;
 }
 
 void set_tasklen()
 {
+	curr_char = 0;
 	if(task_len == 0 && !clients.empty()){
 		client c = clients.front();
 		task_len = (c.bin_str[0] - '0')*26 + (c.bin_str[1] - '0')*26 + (c.bin_str[2]-'0')*10; 
@@ -342,25 +351,29 @@ void assign_task(const int & sock,char* msg)
 			error("ERROR writing to worker socket");
 		else
 		{
-			// make worker busy
-			worker[sock] = true;
+			
 			cout << "Assigned task " << curr_char << " to worker with FD " << sock <<endl;
 			// update the task value yet to be completed
 			curr_char++;
+			// make worker busy
+			worker[sock] = curr_char;
 		}
 	}
 }
 
 //send password to the client ,update connections and status of workers
-void send_password(char* buf)
+void send_password(char* buf,int i)
 {
 	if(!clients.empty()){
 		client c = clients.front();
 		memcpy(pwd,buf,c.pwd_len);
 		pwd[c.pwd_len] = '\0';
 		int sock = (clients.front()).sock;
+		
+		//signal the user about wrong combination of hash, pwd-len and bin_str	
+		if(i) pwd[0] = '$';
 		if(send_all(sock,pwd,sizeof(pwd),0) < 0) 
-			 error("ERROR writing the psswd to client socket");
+				 error("ERROR writing the psswd to client socket");
 		for (int i = 0; i < MAX_CONNECTIONS; ++i)
 		{
 			if(connections[i] == sock_fd){
@@ -371,7 +384,6 @@ void send_password(char* buf)
 		//remove the client from queue
 		clients.pop();
 		task_len = 0;
-		curr_char = 0;
 		// generate the new tasklength for the next client in the queue
 		set_tasklen();
 	}
@@ -381,17 +393,20 @@ void stop_workers(char*msg,int x)
 {
 	if(!x)
 		strcpy(msg,"Password found");
-	else
-		strcpy(msg,"Client hung up!");
+	else{
+		strcpy(msg,"Client hung up");
+	}
 	for (it_type it = worker.begin();it!= worker.end(); it++)
 	{
+		cout << "fd " <<  it->first << " sock: " << it->second << endl;
 		if(it->second)
 		{	
 			if (send_all(it->first,msg,MAXLEN,0) < 0)
 				error("ERROR sending the stop message to worker socket");
 			else{
-				it->second = false;
+				it->second = 0;
 			}
 		}
 	}
+	set_tasklen();
 }

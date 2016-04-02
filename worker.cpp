@@ -97,7 +97,7 @@ int main(int argc, char const *argv[])
 				return 1;
 			}
 		}
-		if( strcmp(recbuf,"Password found") == 0 || strcmp(recbuf,"Client hung up!") == 0){
+		if( strcmp(recbuf,"Password found") == 0 || strcmp(recbuf,"Client hung up") == 0){
 			cout << recbuf << endl;
 			// assign this to indicate to stop and not send the server any message
 			toStop = true;
