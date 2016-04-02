@@ -3,6 +3,7 @@
 #include <map>
 #include <pthread.h>
 #include <string.h>
+#include <time.h>
 char alphabet[] = {'a' ,'b'  ,'c'  ,'d'  ,'e'  ,'f'  ,'g'  ,'h'  ,'i'  ,'j'  ,'k'  ,'l'  ,'m'  ,'n'  ,'o'  ,'p'  ,'q'  ,'r'  ,'s'  
  ,'t'  ,'u'  ,'v'  ,'w'  ,'x'  ,'y'  ,'z'  ,'A'  ,'B'  ,'C'  ,'D'  ,'E'  ,'F'  ,'G'  ,'H'  ,'I'  ,'J'  ,'K'  ,'L' 
  ,'M'  ,'N'  ,'O'  ,'P'  ,'Q'  ,'R'  ,'S'  ,'T'  ,'U'  ,'V'  ,'W'  ,'X'  ,'Y'  ,'Z'  ,'0'  ,'1'  ,'2'  ,'3'  ,'4'  
@@ -51,64 +52,70 @@ void initialise()
 
 }
 
-void generate_next()
-{	
-	last = pwd_len-1;
-	while(gen[last] == alphabet[high-1] && last>0)
-		gen[last--] = alphabet[low];
+// void generate_next()
+// {	
+// 	last = pwd_len-1;
+// 	while(gen[last] == alphabet[high-1] && last>0)
+// 		gen[last--] = alphabet[low];
 	
-	if(!is_cont && gen[last] == 'z'){
-		gen[last] = '0';
-	}
-	else
-		gen[last] = alphabet[(ctoi[gen[last]] + 1)%sz];
+// 	if(!is_cont && gen[last] == 'z'){
+// 		gen[last] = '0';
+// 	}
+// 	else
+// 		gen[last] = alphabet[(ctoi[gen[last]] + 1)%sz];
 	
-	if(strcmp(crypt(gen,salts),hash) == 0){
-		memcpy(pwd,gen,pwd_len);
-		found  = true;
-	}
-}
+// 	if(strcmp(crypt(gen,salts),hash) == 0){
+// 		memcpy(pwd,gen,pwd_len);
+// 		found  = true;
+// 	}
+// }
 
-void *testall(void* y)
-{
-	// while(!found){cout <<"...";}
-	// return NULL;
-	int x = *((int*) y);
-	initialise();
-	char c;
-	if(!is_cont && x>=sch){
-		c = alphabet[ch+x-sch];
-	}	
-	else
-		c = alphabet[low + x];
-	gen[0] = c;
-	for (int i = 1; i < pwd_len; ++i)
-		gen[i] = alphabet[low];
+// void *testall(void* y)
+// {
+// 	// while(!found){cout <<"...";}
+// 	// return NULL;
+// 	int x = *((int*) y);
+// 	initialise();
+// 	char c;
+// 	if(!is_cont && x>=sch){
+// 		c = alphabet[ch+x-sch];
+// 	}	
+// 	else
+// 		c = alphabet[low + x];
+// 	gen[0] = c;
+// 	for (int i = 1; i < pwd_len; ++i)
+// 		gen[i] = alphabet[low];
 
-	while(gen[0] == c && !found){
-		cout << gen << endl;
-		generate_next();
-	}
-	return NULL;
-}
+// 	while(gen[0] == c && !found){
+// 		cout << gen << endl;
+// 		generate_next();
+// 	}
+// 	return NULL;
+// }
 
 // compile as g++ test.cpp -lcrypt
 int main()
 {
     // printf("%s\n",crypt("123456","ab"));
+	 time_t start = clock();
 	 int cnt = 0;
 	 // gen[pwd_len-1] = '\0';
 	 // gen[2] = '\0';
 	 // cout << crypt("1234","bc");
 	 // ab1iBa.N.U2C6
-	 strcpy(hash ,"bc9kg/L7Fd0Nw");
-	 for (int i = 0; i < sz; ++i)
-		ctoi[alphabet[i]] = i;
-	 strcpy(bin_str,"001");
-	 int x = 1;
-	 // pthread_t thread1;
+	 // strcpy(hash ,"bc9kg/L7Fd0Nw");
+	 // for (int i = 0; i < sz; ++i)
+		// ctoi[alphabet[i]] = i;
+	 // strcpy(bin_str,"001");
+	 // int x = 1;
+	 // // pthread_t thread1;
 	 gen[pwd_len] = '\0';
-	 testall(&x);
+	 int i =0;
+	 while(i<1000000){i++;}
+	 // testall(&x);
+	 gen[0] = '$';
+	 strcpy(gen+1,"hgh");
+	 // cout << gen << endl;
 	 // int iret1 = pthread_create( &thread1, NULL, testall, (void*)&x);
 	 // cout << strcmp();
 	 // testall(0,gen);
@@ -130,10 +137,9 @@ int main()
 	 // }
 	 // x = 2;
 	 // while(1){}
-	 pwd[pwd_len] = '\0';
-	 if(found)
-	 	cout << pwd;
-	 return 0;
+	double seconds_since_start = (clock()-start)/(CLOCKS_PER_SEC/1000);
+	cout << seconds_since_start << endl;
+	return 0;
 }
 
 /*void generate_hash(int curr,char* gen)

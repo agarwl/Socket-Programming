@@ -15,87 +15,30 @@ char alphabet[] = {'a' ,'b'  ,'c'  ,'d'  ,'e'  ,'f'  ,'g'  ,'h'  ,'i'  ,'j'  ,'k
 #define sch 26
 #define ch 52  
 #define sz 62
-#define PWDLEN 8
-#define MAXLEN 20
-#define HASHLEN 13
-#define TASKINDEX 17
 
 map<char,int> ctoi;
 
-char hash[HASHLEN+1];
-int pwd_len;
-char pwd[PWDLEN+1],bin_str[3],salt[3];
-static char gen[PWDLEN+1];
-static bool found = false;
-static int task;
-bool is_cont = 0;
-int low,high,last;
+char hash[HASHLEN+1], pwd[PWDLEN+1],bin_str[3],salt[3]; // data passed by the server
+static char mssg[MAXLEN];// string for sending message to the server
+static char gen[PWDLEN+1];// a string to store all the possible password 
+static bool found = false; // variable to indicate whether the password is found during given task or not
+static bool toStop = false; // variable to indicate whether to stop the cracking 
+static int task;	//indicate the starting character from which all the passwords are to be generated
+int sock_fd,pwd_len; // socket file descriptor for worker and the length of the password to be cracked
+bool is_cont = 0; // denotes whether bin_str is "101" or not
+int low,high,last; // helper variables for testall
 
-void initialise()
-{
-	low = high = -1;
-	is_cont = (strcmp(bin_str,"101") != 0);
-	if(bin_str[1] == '1'){
-		low = sch;
-		high = ch;
-	}
-	if(bin_str[0] == '1'){
-		low = 0;
-		if(high ==-1) high = sch;
-	}
-	if(bin_str[2] == '1'){
-		if(low == -1) low = ch;
-		high = sz;
-	}
-	//the first two characters of the hash is salt
-	memcpy(salt,hash,2);
-	salt[2] = '\0';
-}
+/*function prototypes*/
 
-void generate_next()
-{	
-	last = pwd_len-1;
-	while(gen[last] == alphabet[high-1] && last>0)
-		gen[last--] = alphabet[low];
-	
-	if(!is_cont && gen[last] == 'z'){
-		gen[last] = '0';
-	}
-	else
-		gen[last] = alphabet[(ctoi[gen[last]] + 1)%sz];
-	
-	// cout << salt << endl;
-	if(strcmp(crypt(gen,salt),hash) == 0){
-		memcpy(pwd,gen,pwd_len);
-		// cout << "yeah";
-		found  = true;
-	}
-	// if(gen[0] == '1')
-	// 	cout << gen << crypt(gen,salt);
-}
+/* helper function for testall*/
+void initialise();
 
-void *testall(void* y)
-{
-	// while(!found){cout <<"...";}
-	// return NULL;
-	int x = *((int*) y);
-	initialise();
-	char c;
-	if(!is_cont && x>=sch){
-		c = alphabet[ch+x-sch];
-	}	
-	else
-		c = alphabet[low + x];
-	gen[0] = c;
-	for (int i = 1; i < pwd_len; ++i)
-		gen[i] = alphabet[low];
+/* generates the next pemutation of the string "gen" using characters according to bin_str*/
+void generate_next();
 
-	while(gen[0] == c && !found){
-		// cout << gen << endl;
-		generate_next();
-	}
-	return NULL;
-}
+/* function to generate all permutations and test whether they match with a hash or not
+and inform the sender accordingly*/
+void* testall(void* y);
 
 int main(int argc, char const *argv[])
 {
@@ -104,11 +47,12 @@ int main(int argc, char const *argv[])
 		return 1;
 	}
 
+	//constructing the map from character to int
 	for (int i = 0; i < sz; ++i)
 		ctoi[alphabet[i]] = i;
 
-	int sock_fd,iret1,numbytes;
-	pthread_t thread1,thread2;
+	int n;
+	pthread_t thread1;
 	struct hostent *he;
 	struct sockaddr_in server_addr; // connector’s address information
 
@@ -130,22 +74,33 @@ int main(int argc, char const *argv[])
 	server_addr.sin_addr = *((struct in_addr *)he->h_addr);
 	memset(&(server_addr.sin_zero), '\0', 8); // zero the rest of the struct
 
+	//setting up the connection
 	if (connect(sock_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr)) == -1) {
 		perror("connect");
 		return 1;
 	}
 
 
-	char recbuf[MAXLEN],mssg[MAXLEN];
+	char recbuf[MAXLEN];
 	mssg[0] = 'w';
 	mssg[1] = 's';
-	send_all(sock_fd,mssg,sizeof(mssg),0);
+	if(send_all(sock_fd,mssg,sizeof(mssg),0) < 0)
+		error("send");
 	
 	while(true)
 	{
-		while( recv_all(sock_fd, recbuf, MAXLEN, 0) != 1){}
-		cout << recbuf << endl;
-		if(recbuf[0] == '$'){
+		while( (n = recv_all(sock_fd, recbuf, MAXLEN, 0))!= 1)
+		{
+			if(n == 0){
+				cout << "Server closed connection" << endl;
+				close(sock_fd);
+				return 1;
+			}
+		}
+		if( strcmp(recbuf,"Password found") == 0 || strcmp(recbuf,"Client hung up!") == 0){
+			cout << recbuf << endl;
+			// assign this to indicate to stop and not send the server any message
+			toStop = true;
 			found = true;
 		}
 		else{
@@ -153,33 +108,106 @@ int main(int argc, char const *argv[])
 			// receive the hash, pwd-len, binary-string
 			memcpy(hash,recbuf,HASHLEN);
 			hash[HASHLEN] = '\0';
-			
+			cout << "Trying to decrypt the hash " << hash << endl;
 			pwd_len = (recbuf[HASHLEN] - '0');
-			
-			// cout << " oh" <<  pwd_len << "fuck" <<  endl;
 			memcpy(bin_str,recbuf+HASHLEN+1,sizeof(bin_str));	
 
 			gen[pwd_len]  = '\0';
-
 			task = stoi(recbuf+TASKINDEX);
-			cout << "task: " << task << endl;
+			cout << "Doing task: " << task << endl;
 			found = false;
+			toStop = false;
 			
-			iret1 = pthread_create( &thread1, NULL, testall, (void*)&task);
-			pthread_join(thread1,NULL);
-			
-			if(found){
-				mssg[1] = 'y';
-				memcpy(mssg+2,pwd,pwd_len);
-				found = false;
-			}
-			else{
-				mssg[1] = 'n';
-				mssg[2] = '\0';
-			}
-			if (send_all(sock_fd,mssg,sizeof(mssg),0) < 0)
-				error("send_all");
+			//initialsing thread for current task
+			pthread_create( &thread1, NULL, testall, (void*)&task);
 		}
 	}
 	return 0;
+}
+
+void initialise()
+{
+	low = high = -1;
+	is_cont = (strcmp(bin_str,"101") != 0);
+	if(bin_str[1] == '1'){
+		low = sch;
+		high = ch;
+	}
+	if(bin_str[0] == '1'){
+		low = 0;
+		if(high ==-1) high = sch;
+	}
+	if(bin_str[2] == '1'){
+		if(low == -1) low = ch;
+		high = sz;
+	}
+
+	//the first two characters of the hash is salt
+	memcpy(salt,hash,2);
+	salt[2] = '\0';
+}
+
+void generate_next()
+{	
+	last = pwd_len-1;
+	while(gen[last] == alphabet[high-1] && last>0)
+		gen[last--] = alphabet[low];
+	
+	if(!is_cont && gen[last] == 'z'){
+		gen[last] = '0';
+	}
+	else
+		gen[last] = alphabet[(ctoi[gen[last]] + 1)%sz]; // %sz to wrap around the last character to indicate change
+	
+	// check whether the hash of the current string matches with the given hash
+	if(strcmp(crypt(gen,salt),hash) == 0){
+		memcpy(pwd,gen,pwd_len);
+		found  = true;
+	}
+}
+
+void *testall(void* y)
+{
+	// integer cast
+	int x = *((int*) y);
+	//initialise low,high and salt 
+	initialise();
+	char c;
+	//find the first character of "gen"
+	if(!is_cont && x>=sch){
+		c = alphabet[ch+x-sch];
+	}	
+	else
+		c = alphabet[low + x];
+	
+	//calculate the first permutation starting with character c
+	gen[0] = c;
+	for (int i = 1; i < pwd_len; ++i)
+		gen[i] = alphabet[low];
+
+	//the first character remains constant across all the generated passwords
+	while(gen[0] == c && !found){
+		generate_next();
+	}
+
+	// inform the server accordingly
+	if(found){
+	  if(!toStop){
+		  mssg[1] = 'y';
+		  memcpy(mssg+2,pwd,pwd_len);
+		  found = false;
+	  }
+	}
+	else{
+		strcpy(mssg+1,"Not found");
+		cout << "Password doesn't start with character " << c << endl; 
+	}
+	if(!toStop){
+		if (send_all(sock_fd,mssg,sizeof(mssg),0) < 0)
+		error("send_all");	
+	}
+	else{
+		toStop = false;
+	}
+	return NULL;
 }

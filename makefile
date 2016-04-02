@@ -1,6 +1,6 @@
 
 CC = g++
-CFLAGS = -c -g
+CFLAGS = -c -Wall -g
 LDFLAGS=
 RM = rm
 DIR = ./
@@ -20,16 +20,16 @@ all: target
 target: $(SERVER) $(WORKER) $(CLIENT)
 
 $(SERVER): server.o utilfuncs.o
-	$(CC) server.o utilfuncs.o -o $@
+	@$(CC) server.o utilfuncs.o -o $@
 
 $(CLIENT): user.o utilfuncs.o
-	$(CC) user.o utilfuncs.o -o $@
+	@$(CC) user.o utilfuncs.o -o $@
 
 $(WORKER): worker.o utilfuncs.o
-	$(CC) worker.o utilfuncs.o -lpthread -lcrypt -o $@ 
+	@$(CC) worker.o utilfuncs.o -lpthread -lcrypt -o $@ 
 
 .cpp.o:
-	$(CC) $(CFLAGS) $< -o $@
+	@$(CC) $(CFLAGS) $< -o $@
 
 
 clean:

@@ -14,6 +14,12 @@
 #include <arpa/inet.h>
 using namespace std;
 
+
+#define MAXLEN 20 
+#define HASHLEN 13
+#define PWDLEN 8
+#define TASKINDEX 17
+
 int send_all(int socket, char *buffer, size_t length, int flags);
 int recv_all(int socket,char *buffer, size_t length, int flags);
 void error(const char *msg);

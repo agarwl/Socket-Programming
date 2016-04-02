@@ -3,6 +3,7 @@ Compile as g++ user.cpp -o user
 */
 
 #include "utilfuncs.h"
+#include <time.h>
 // using namespace std;
 
 #define MAXLEN 20
@@ -20,6 +21,7 @@ int main(int argc, char const *argv[])
 	struct hostent *server;
 	struct sockaddr_in server_addr; // connector’s address information
 	
+	int initial_time,final_time;
 
 	server_port = atoi(argv[2]);
 
@@ -48,13 +50,19 @@ int main(int argc, char const *argv[])
 	if(send_all(sock_fd,buf,MAXLEN,0) == -1)
 		error("send");
 
+	// start the timer after sending the message to server
+	initial_time = clock();
+
 	listen(sock_fd,1);
 	while(recv_all(sock_fd, recvbuf,PWDLEN+1,0) != 1){}
-		
-	// if(recv_all(sock_fd, recvbuf,PWDLEN+1, 0) < 0) // receiving the password and time taken from server
-	// 	error("recv");
+
+	// stop the timer after receiving the password from server
+	final_time = clock();
+	double time_taken = (double(final_time - initial_time))/(CLOCKS_PER_SEC/1000);
 	
-	cout << "Password and time taken:" << endl << recvbuf << endl;
+	cout << "Password: " << recvbuf << endl;
+	cout << "Time taken in milliseconds: " << time_taken << endl;
+
 	close(sock_fd);
 	return 0; 
 }

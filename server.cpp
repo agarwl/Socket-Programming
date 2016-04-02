@@ -10,14 +10,10 @@ http://www.lowtek.com/sockets/select.html
 #include "utilfuncs.h"
 // using namespace std;
 
-typedef map<int,int>::iterator it_type;
+typedef map<int,bool>::iterator it_type;
 
 #define BACKLOG 8 // how many pending connections queue will hold
-#define MAXLEN 20 
-#define HASHLEN 13
-#define PWDLEN 8
 #define CLIENTS 3
-#define TASKINDEX 17
 
 struct client{
 	int sock;
@@ -36,7 +32,7 @@ struct client{
 };
 
 queue<client> clients; // queue for the clients
-map<int,int> worker; //a map to store whether a worker is busy or not
+map<int,bool> worker; //a map to store whether a worker is busy or not
 char pwd[PWDLEN+1];
 
 const int MAX_WORKERS = 5;
@@ -50,7 +46,7 @@ int max_sock;// Highest  file descriptor, needed for select()
 struct sockaddr_in remoteaddr; // client address
 socklen_t remote_size = sizeof(remoteaddr);
 
-int curr_char = 0;
+int curr_char=0;
 int task_len=0;
 
 /* function prototypes */
@@ -60,10 +56,10 @@ void construct_select_list();
 void deal_with_socket(int i);
 void read_sockets();
 void connection_handler();
-void assign_task(const int &sock_fd,char* msg);
+void assign_task(const int &sock,char* msg);
 void assign_workers(char* msg,int sock=0);
 void send_password(char* buf);
-void stop_workers(char*msg);
+void stop_workers(char*msg,int x=0);
 
 int main(int argc, char const *argv[])
 {
@@ -113,9 +109,11 @@ int main(int argc, char const *argv[])
 	// Since we start with only one socket, the listening socket, it is the socket with highest id so far.
 	max_sock = sock_fd;
 
+	// initialise the connections array
 	for (int i = 0; i < MAX_CONNECTIONS; ++i)
 		connections[i] = 0;
 
+	// run indefinitely
 	while (true)
 	{
 		construct_select_list();
@@ -194,7 +192,7 @@ void deal_with_socket(int i)
    int sock = connections[i];
    if(!sock)
    	return;
-   int n,sock_fd;
+   int n;
    // array to send data to client/worker
    char msg[MAXLEN];
    // array to receive data
@@ -208,18 +206,20 @@ void deal_with_socket(int i)
    	updateConnections(i);
    	return;
    }
-   printf("Here is the message: %s\n",buffer);
+   /* printf("Here is the message: %s\n",buffer);*/
 
+   //if message was received from a client(user)
    if(buffer[0] == 'c'){
 
+   		/* if number of clients connected are less than max no of clients,
+   		 add this client to queue*/
    		if(clients.size() <= MAX_CLIENTS){
-   			char c = buffer[HASHLEN+1];
-   			int pwd_len = atoi(&c);
-   			cout << "pwd_len: " << pwd_len << endl;
+   			int pwd_len = (buffer[HASHLEN+1] - '0');
 			clients.push(client(sock,pwd_len,buffer+1,buffer+HASHLEN+2));
 			set_tasklen();	
 		}
-		else{
+		else{ 
+			/*inform the client about the max_connection limit reached*/ 
 			strcpy(msg,"Connection aborted");
 			n = send_all(sock,msg,sizeof(msg),0);
 			if (n < 0) 
@@ -229,33 +229,42 @@ void deal_with_socket(int i)
 		}
 		assign_workers(msg);
 	}
+	// if message was received from a worker
 	else if(buffer[0] == 'w'){
 		
+		// if the worker is starting a new connection
 		if(buffer[1] == 's'){
 			if(worker.size() < MAX_WORKERS){
 				//initialise this newly connected worker as free
-				worker[sock] = 0;
+				worker[sock] = false;
 				//assign this worker some task
 				assign_workers(msg,sock);
 				// cout << "worker size: " << worker.size() << '\n';
 			}
+
 			else{
-			  	strcpy(msg,"wConnection aborted");
+				// inform the worker about max connections reached
+			  	strcpy(msg,"Connection aborted");
 			  	if (send_all(sock,msg,sizeof(msg),0) < 0);
-					error("ERROR writing to worker socket, the client message");
+					error("send");
 				updateConnections(i);
-				printf("\n");
 				return;
 			}
-		}	
+		}
+		// if the worker found the password
 		else if(buffer[1] == 'y'){
 			send_password(buffer+2);
+			// stop all the workers to prevent unecessary processing
 			stop_workers(msg);
 			assign_workers(msg);
 		}
-		else if(buffer[1] == 'n')
+		// if the password was not found in the current task
+		else if(strcmp(buffer+1 ,"Not found") == 0)
 		{
-			assign_task(sock,msg);
+			// make worker idle
+			worker[sock] = false;
+			// assign new task to the worker
+			assign_workers(msg,sock);
 		}
 	}
 }
@@ -264,6 +273,13 @@ void deal_with_socket(int i)
 void updateConnections(const int &i)
 {
 	close(connections[i]);
+	if(!clients.empty() && connections[i] == (clients.front()).sock){
+		char msg[MAXLEN];
+		cout << "The current client with FD " << connections[i] << " hang up!\n";
+		clients.pop();
+		stop_workers(msg,1);
+	}
+	// update the max_sock to be used for select call
 	if(max_sock == connections[i]){
 		max_sock = sock_fd;
 		for (int j = 0; j < MAX_CONNECTIONS; ++j)
@@ -272,6 +288,7 @@ void updateConnections(const int &i)
 				max_sock = max(max_sock,connections[j]);
 		}
 	}
+	// update the connection in the connection list as well
 	connections[i] = 0;
 }
 
@@ -292,7 +309,6 @@ void generate_msg(char* msg)
 		
 		//copy the hash into the message
 		memcpy(msg,c.hash,HASHLEN);
-		cout << c.pwd_len << endl;
 		msg[HASHLEN] = (c.pwd_len + '0');
 		
 		//append the binary-string into the message
@@ -307,44 +323,43 @@ void assign_workers(char* msg,int sock)
 		if(!sock)
 		{
 			for (it_type it = worker.begin();it!= worker.end(); it++)
-			{
-				if(it->second == 0)
-				{
+				if(!it->second)
 					assign_task(it->first,msg);
-				    // cout << "sending: " << msg << endl;
-				}
-			}
 		}
 		else
 			assign_task(sock,msg);
 	}
 }
 
-void assign_task(const int & sock_fd,char* msg)
+//assign the current pending task to a worker if free
+void assign_task(const int & sock,char* msg)
 {
-	if(curr_char < task_len)
+	if(curr_char < task_len && !worker[sock])
 	{
 		itoc(curr_char,msg+TASKINDEX);
 		msg[MAXLEN-1] = '\0';
-		cout << "msg:" << msg <<endl;
-		if (send_all(sock_fd,msg,MAXLEN,0) < 0)
+		if (send_all(sock,msg,MAXLEN,0) < 0)
 			error("ERROR writing to worker socket");
 		else
 		{
-			worker[sock_fd] = 1;
+			// make worker busy
+			worker[sock] = true;
+			cout << "Assigned task " << curr_char << " to worker with FD " << sock <<endl;
+			// update the task value yet to be completed
 			curr_char++;
 		}
 	}
 }
 
+//send password to the client ,update connections and status of workers
 void send_password(char* buf)
 {
 	if(!clients.empty()){
 		client c = clients.front();
 		memcpy(pwd,buf,c.pwd_len);
 		pwd[c.pwd_len] = '\0';
-		int sock_fd = (clients.front()).sock;
-		if(send_all(sock_fd,pwd,sizeof(pwd),0) < 0) 
+		int sock = (clients.front()).sock;
+		if(send_all(sock,pwd,sizeof(pwd),0) < 0) 
 			 error("ERROR writing the psswd to client socket");
 		for (int i = 0; i < MAX_CONNECTIONS; ++i)
 		{
@@ -353,24 +368,29 @@ void send_password(char* buf)
 				break;
 			}
 		}
+		//remove the client from queue
 		clients.pop();
 		task_len = 0;
 		curr_char = 0;
+		// generate the new tasklength for the next client in the queue
 		set_tasklen();
 	}
 }
 
-void stop_workers(char*msg)
+void stop_workers(char*msg,int x)
 {
-	strcpy(msg,"$found");
+	if(!x)
+		strcpy(msg,"Password found");
+	else
+		strcpy(msg,"Client hung up!");
 	for (it_type it = worker.begin();it!= worker.end(); it++)
 	{
-		if(it->second == 1)
+		if(it->second)
 		{	
 			if (send_all(it->first,msg,MAXLEN,0) < 0)
 				error("ERROR sending the stop message to worker socket");
 			else{
-				it->second = 0;
+				it->second = false;
 			}
 		}
 	}
