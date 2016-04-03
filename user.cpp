@@ -13,7 +13,7 @@ Compile as g++ user.cpp -o user
 int main(int argc, char const *argv[])
 {
 	int initial_time,final_time;
-	initial_time = clock();
+	
 	if(argc != 6){
 		cout << "Usage: ./user <server ip/host-name> <server-port> <hash> <passwd-length> <binary-string>" << endl;
 		return 1;
@@ -54,7 +54,7 @@ int main(int argc, char const *argv[])
 		error("send");
 
 	// start the timer after sending the message to server
-	// initial_time = clock();
+	initial_time = clock();
 
 	listen(sock_fd,1);
 	while( (n = recv_all(sock_fd, recvbuf,PWDLEN+1,0)) != 1)
