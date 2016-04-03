@@ -2,7 +2,7 @@ from random import randint
 import subprocess,sys
 
 if(len(sys.argv) != 2):
-	# file is a cpp program that converts password , salt into a hash value
+	# file is a cpp program (generateHash.cpp) that converts password , salt into a hash value
 	print("Usage: python gen.py file")
 	sys.exit()
 
@@ -29,15 +29,15 @@ subprocess.call(['g++', sys.argv[1], '-lcrypt', '-o', executable])
 file = ""
 pwd, salt, hashval = "","",""
 for i in pwdlen:
-	file += str(i) + '\n'
+	# file += str(i) + '\n'
 	for j in range(numPasswords):
 		pwd,salt = generatePassword(i)
 	# subprocess.check_output(['your_program.exe', 'arg1', 'arg2'])
 		hashval = subprocess.check_output([ ("./" + executable), pwd , salt])
 		# (mylist[index]).append((hashval,pwd))
-		file += hashval + " , " + pwd + '\n'
+		file += hashval + ", " + pwd + '\n'
 	# index += 1
-	file += '\n'
+	# file += '\n'
 
 with open('pwd.txt','w') as f:
 	f.write(file)
