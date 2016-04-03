@@ -213,14 +213,15 @@ void deal_with_socket(int i)
 
    		/* if number of clients connected are less than max no of clients,
    		 add this client to queue*/
-   		if(clients.size() <= MAX_CLIENTS){
+   		if(clients.size() < MAX_CLIENTS){
    			int pwd_len = (buffer[HASHLEN+1] - '0');
 			clients.push(client(sock,pwd_len,buffer+1,buffer+HASHLEN+2));
 			set_tasklen();	
 		}
 		else{ 
+			printf("Max client limit reached....\n");
 			/*inform the client about the max_connection limit reached*/ 
-			strcpy(msg,"Connection aborted");
+			strcpy(msg,"#Connection aborted");
 			n = send_all(sock,msg,sizeof(msg),0);
 			if (n < 0) 
 				error("ERROR writing to client socket");
@@ -241,12 +242,9 @@ void deal_with_socket(int i)
 				assign_workers(msg,sock);
 				// cout << "worker size: " << worker.size() << '\n';
 			}
-
 			else{
-				// inform the worker about max connections reached
-			  	strcpy(msg,"Connection aborted");
-			  	if (send_all(sock,msg,sizeof(msg),0) < 0);
-					error("send");
+				printf("Max worker limit reached....\n");
+				// close the worker connection when max worker limit reached
 				updateConnections(i);
 				return;
 			}
@@ -295,7 +293,7 @@ void updateConnections(const int &i)
 				max_sock = max(max_sock,connections[j]);
 		}
 	}
-	cout << "The connection of client with FD " << connections[i] << " closed" << endl;
+	cout << "The connection with FD " << connections[i] << " closed" << endl;
 	// update the connection in the connection list as well
 	connections[i] = 0;
 }

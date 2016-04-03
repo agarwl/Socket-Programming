@@ -65,9 +65,12 @@ int main(int argc, char const *argv[])
 			return 1;
 		}
 	}
-	if(recvbuf[0] == '$')
+	if(recvbuf[0] == '$' || recvbuf[0] == '#')
 	{
-		cout << "Wrong combination of hash, binary-string and password-length entered" << endl;
+		if(recvbuf[0] == '$')
+			cout << "Wrong combination of hash, binary-string and password-length entered\n";
+		else
+			cout << "Client limit exceeded at server...\n";
 		cout << "Closing connection..." << endl;
 		close(sock_fd);
 		return 1;

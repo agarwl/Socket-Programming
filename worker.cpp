@@ -103,6 +103,7 @@ int main(int argc, char const *argv[])
 			toStop = true;
 			found = true;
 		}
+		// else if(strcmp(recbuf,))
 		else{
 
 			// receive the hash, pwd-len, binary-string
