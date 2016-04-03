@@ -1,9 +1,9 @@
 /*
 Compile as g++ user.cpp -o user 
 */
-
+#include <chrono>
 #include "utilfuncs.h"
-#include <time.h>
+// #include <time.h>
 // using namespace std;
 
 #define MAXLEN 20
@@ -12,7 +12,7 @@ Compile as g++ user.cpp -o user
 
 int main(int argc, char const *argv[])
 {
-	int initial_time,final_time;
+	// int initial_time,final_time;
 	
 	if(argc != 6){
 		cout << "Usage: ./user <server ip/host-name> <server-port> <hash> <passwd-length> <binary-string>" << endl;
@@ -54,7 +54,8 @@ int main(int argc, char const *argv[])
 		error("send");
 
 	// start the timer after sending the message to server
-	initial_time = clock();
+	// initial_time = clock();
+	auto initial_time = std::chrono::system_clock::now();
 
 	listen(sock_fd,1);
 	while( (n = recv_all(sock_fd, recvbuf,PWDLEN+1,0)) != 1)
@@ -77,11 +78,13 @@ int main(int argc, char const *argv[])
 	}
 
 	// stop the timer after receiving the password from server
-	final_time = clock();
-	double time_taken = (double(final_time - initial_time))/CLOCKS_PER_SEC;
+	auto final_time = std::chrono::system_clock::now();
+	
+	//calculate the time taken
+	auto time_taken = chrono::duration_cast<std::chrono::milliseconds>(final_time - initial_time);
 	
 	cout << "Password: " << recvbuf << endl;
-	cout << "Time taken in seconds " << time_taken << endl;
+	cout << "Time taken in milliseconds: " << time_taken.count() << endl;
 
 	close(sock_fd);
 	return 0; 
