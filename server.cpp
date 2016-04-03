@@ -300,8 +300,9 @@ void updateConnections(const int &i)
 
 void set_tasklen()
 {
-	curr_char = 0;
 	if(task_len == 0 && !clients.empty()){
+		// resetting the curr_char if task done
+		curr_char = 0;
 		client c = clients.front();
 		task_len = (c.bin_str[0] - '0')*26 + (c.bin_str[1] - '0')*26 + (c.bin_str[2]-'0')*10; 
 	}
